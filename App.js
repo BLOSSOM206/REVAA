@@ -5,16 +5,18 @@ import ProfessorsList from './screens/student/ProfessorsList'
 import ProfessorProfile from './screens/student/ProfessorProfile'
 import Register from "./screens/auth/Register_s"
 import Login_s from './screens/auth/login_s'
+import AssignmentSubmission from './screens/student/AssignmentSubmission'
 import ContentScreen from './screens/student/ContentScreen'
 import StudentDashboard from './screens/auth/studentDashboard'
 import { AccessibilityProvider } from './context/AccessibilityContext'
 import RoleSelection from './screens/auth/RoleSelection'
-
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 const Stack = createNativeStackNavigator()
 
 export default function App() {
   
  return (
+  <SafeAreaProvider>
   <AccessibilityProvider>
     <NavigationContainer>
       <Stack.Navigator initialRouteName="RoleSelection">
@@ -53,7 +55,11 @@ export default function App() {
           name="ContentScreen"
           component={ContentScreen}/>
 
+          <Stack.Screen
+          name="AssignmentSubmission"
+          component={AssignmentSubmission}/>
+
       </Stack.Navigator>
     </NavigationContainer>
-  </AccessibilityProvider>
+  </AccessibilityProvider></SafeAreaProvider>
 )}

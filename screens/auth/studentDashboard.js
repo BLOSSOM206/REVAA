@@ -14,6 +14,7 @@ export default function StudentDashboard({ route, navigation }) {
         {title:"My Courses",screen:"Courses"},
         {title:"Professors",screen:"ProfessorsList"},
         {title:"Content",screen:"ContentScreen"},
+        {title:"Assignment Submission",screen:"AssignmentSubmission"}
         
         
     ]
