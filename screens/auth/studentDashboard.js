@@ -11,10 +11,10 @@ export default function StudentDashboard({ route, navigation }) {
     const {setAccessibilityType,setUserName,setUserId}=useAccessibility()
     const [userData, setUserData] = useState(null)
     const DashboardItems =[
-        {title:"My Courses",screen:"Courses"},
+        {title:"My Courses",screen:"MyCourse"},
         {title:"Professors",screen:"ProfessorsList"},
         {title:"Content",screen:"ContentScreen"},
-        {title:"Assignment Submission",screen:"AssignmentSubmission"}
+        
         
         
     ]
