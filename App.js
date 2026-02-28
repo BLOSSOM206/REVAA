@@ -14,6 +14,7 @@ import RoleSelection from './screens/auth/RoleSelection'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import MyCourse from './screens/student/MyCourse'
 import CourseAssignmentsScreen from './screens/student/CourseAssignmentsScreen'
+import EmergencyAlerts from './screens/EmergencyAlerts'
 const Stack = createNativeStackNavigator()
 
 export default function App() {
@@ -56,6 +57,9 @@ export default function App() {
         <Stack.Screen
   name="MyCourse"
   component={MyCourse}
+/><Stack.Screen 
+  name="EmergencyAlerts" 
+  component={EmergencyAlerts} 
 />
 <Stack.Screen
   name="CourseAssignments"

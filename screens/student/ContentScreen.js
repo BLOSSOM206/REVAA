@@ -1,279 +1,215 @@
-import { View,Text,Button,FlatList,StyleSheet } from "react-native";
+import { View, FlatList, StyleSheet } from "react-native";
 import { useAccessibility } from "../../context/AccessibilityContext";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../../services/firebaseConfig";
 import { useEffect, useState } from "react";
-import { EmailAuthCredential } from "firebase/auth/web-extension";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import { Video } from "expo-av";
-import {WebView} from "react-native-webview"
+import { WebView } from "react-native-webview";
 import AppText from "../components/AppText";
 
-export default function ContentScreen()
+export default function ContentScreen() {
+  const { userId, accessibilityType } = useAccessibility();
+  const [enrolledProfessorIds, setEnrolledProfessorIds] = useState([]);
+  const [contentList, setContentList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const convertToEmbed = (url) => {
+    if (!url) return "";
+    const videoId = url.includes("v=") ? url.split("v=")[1]?.split("&")[0] : "";
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+  };
 
-{
-    const {userId,accessibilityType}=useAccessibility()
-    const [enrolledProfessorIds, setEnrolledProfessorIds] = useState([]);
-    const [contentList, setContentList] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const convertToEmbed = (url) => {
-  if (!url) return "";
-  const videoId = url.split("v=")[1];
-  return `https://www.youtube.com/embed/${videoId}`;
-};
+  useEffect(() => {
+    const auth = getAuth();
+    if (!auth.currentUser || !userId) return;
 
-    useEffect(()=>{
-        const auth = getAuth()
-        console.log("Auth UID ",auth.currentUser?.uid)
-        if(!auth.currentUser)
-        {
-            console.log("User auth not ready!")
-            return
-        }
-         if(!userId)
-    {
-        return
+    const q = query(collection(db, "enrollments"), where("studentId", "==", userId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const professorIds = snapshot.docs.map((doc) => doc.data().professorId);
+      setEnrolledProfessorIds(professorIds);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  useEffect(() => {
+    if (enrolledProfessorIds.length === 0) {
+      setLoading(false);
+      return;
     }
-    const q = query(collection(db,"enrollments"),where("studentId","==",userId))
-    const unsubscribe=onSnapshot(q,(snapshot)=>{
-        const professorId = snapshot.docs.map(doc=>doc.data().professorId)
-        console.log("Enrolled Professor: ",professorId)
-        setEnrolledProfessorIds(professorId)
-        
-    })
-        return ()=>unsubscribe()
-    },[userId])
 
-    //fetch professors 
-    useEffect(()=>{
-        if(enrolledProfessorIds.length===0)
-        {
-            setLoading(false)
-            return
-        }
+    const q = query(collection(db, "content"), where("uploadedBy", "in", enrolledProfessorIds));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const contents = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setContentList(contents);
+      setLoading(false);
+    });
 
-        const q=query(collection(db,"content"),where("uploadedBy","in",enrolledProfessorIds))
-        const unsubscribe = onSnapshot(q,(snapshot)=>{
-            const contents= snapshot.docs.map((content)=>({
-                id:content.id,
-                ...content.data(),
-            }))
-            console.log("Contents fetched: ",contents)
+    return () => unsubscribe();
+  }, [enrolledProfessorIds]);
 
-            setContentList(contents)
-            setLoading(false)
-
-        })
-        return ()=>unsubscribe()
-    },[enrolledProfessorIds])
-     if(loading)
-   {
-    return(
-        <View>
-            <AppText>
-                loading.....
-            </AppText>
-        </View>
-    )
-   }
-    
-   if( !loading && contentList.length===0)
-   {
+  if (loading) {
     return (
-        <View>
-            <AppText>
-                No Content yet
-            </AppText>
-        </View>
-    )
-   }
-  
-    
-   return (
-  <View style={styles.container}>
-    
-    {/* Top Header */}
-    <View style={styles.topSection}>
-      <AppText style={styles.header}>Content Feed</AppText>
-
-      <View style={styles.modePill}>
-        <AppText style={styles.modeText}>
-          Accessibility Mode: {accessibilityType}
-        </AppText>
+      <View style={styles.center}>
+        <AppText>Loading...</AppText>
       </View>
-    </View>
+    );
+  }
 
-    <FlatList
-      data={contentList}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={{ paddingBottom: 30 }}
-      renderItem={({ item }) => (
-        <View style={styles.card}>
+  if (!loading && contentList.length === 0) {
+    return (
+      <View style={styles.center}>
+        <AppText>No content yet.</AppText>
+      </View>
+    );
+  }
 
-          {/* Course + Professor */}
-          <AppText style={styles.courseName}>
-            {item.courseName||"Course Name"}
-          </AppText>
-
-          <AppText style={styles.profName}>
-            {item.professorName||"Professor Name"}
-          </AppText>
-
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* Accessibility Content */}
-          {item.status !== "completed" ? (
-            <AppText style={styles.processing}>
-              Generating accessible format...
-            </AppText>
-          ) : (
-            <>
-            
-       {accessibilityType === "Deaf" && item.signVideoURL && (
-  <>
-    {item.videoType === "mp4" && (
-      <Video
-        source={{ uri: item.signVideoURL }}
-        style={styles.video}
-        useNativeControls
-        resizeMode="contain"
-      />
-    )}
-
-    {item.videoType === "youtube" && (
-      <WebView
-        source={{ uri: convertToEmbed(item.signVideoURL) }}
-        style={{ height: 250 }}
-      />
-    )}
-  </>
-)}
-
-              {accessibilityType === "Mute" && (
-                <AppText style={styles.contentText}>
-                  {item.transcript}
-                </AppText>
-              )}
-
-              {accessibilityType === "Dyslexic" && (
-                <AppText style={styles.dyslexicText}>
-                  {item.transcript}
-                </AppText>
-              )}
-            </>
-          )}
+  return (
+    <View style={styles.container}>
+      <View style={styles.headerBlock}>
+        <AppText style={styles.header}>My Content</AppText>
+        <View style={styles.modePill}>
+          <AppText style={styles.modeText}>Mode: {accessibilityType || "Default"}</AppText>
         </View>
-      )}
-    />
-  </View>
-);
+      </View>
+
+      <FlatList
+        data={contentList}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <AppText style={styles.courseName}>{item.courseName || "Course Name"}</AppText>
+            <AppText style={styles.profName}>{item.professorName || "Professor Name"}</AppText>
+            <View style={styles.divider} />
+
+            {item.status !== "completed" ? (
+              <AppText style={styles.processing}>Processing accessible format...</AppText>
+            ) : (
+              <>
+                {accessibilityType === "Deaf" && item.signVideoURL && (
+                  <>
+                    {item.videoType === "youtube" ? (
+                      <WebView source={{ uri: convertToEmbed(item.signVideoURL) }} style={styles.video} />
+                    ) : (
+                      <Video
+                        source={{ uri: item.signVideoURL }}
+                        style={styles.video}
+                        useNativeControls
+                        resizeMode="contain"
+                        shouldPlay
+                        isLooping={false}
+                      />
+                    )}
+                  </>
+                )}
+
+                {accessibilityType === "Mute" && item.transcript && (
+                  <AppText style={styles.contentText}>{item.transcript}</AppText>
+                )}
+
+                {accessibilityType === "Dyslexic" && item.transcript && (
+                  <AppText style={styles.dyslexicText}>{item.transcript}</AppText>
+                )}
+              </>
+            )}
+          </View>
+        )}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    backgroundColor: "#F3F4F6",
   },
-
-  /* Top Section */
-  topSection: {
-    marginBottom: 20,
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-
+  headerBlock: {
+    backgroundColor: "#3F62E8",
+    paddingHorizontal: 18,
+    paddingTop: 24,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+  },
   header: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#0F172A",
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "700",
   },
-
   modePill: {
     alignSelf: "flex-start",
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 10,
+    marginTop: 8,
+    backgroundColor: "#DDE5FF",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
-
   modeText: {
-    color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 12,
+    color: "#1E3A8A",
     fontWeight: "600",
   },
-
-  /* Card */
+  listContent: {
+    padding: 14,
+    paddingBottom: 40,
+  },
   card: {
     backgroundColor: "#FFFFFF",
-    padding: 18,
-    borderRadius: 16,
-    marginBottom: 18,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-
   courseName: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: "700",
     color: "#111827",
   },
-
   profName: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: 2,
   },
-
   divider: {
     height: 1,
     backgroundColor: "#E5E7EB",
-    marginVertical: 12,
+    marginVertical: 10,
   },
-
+  processing: {
+    color: "#FF9800",
+    fontStyle: "italic",
+    fontSize: 14,
+  },
   contentText: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#374151",
     lineHeight: 22,
   },
-
-  processing: {
-    fontSize: 14,
-    color: "#F59E0B",
-    fontStyle: "italic",
-  },
-
   dyslexicText: {
-    fontSize: 18,
-    lineHeight: 28,
+    fontSize: 17,
     color: "#1E293B",
+    lineHeight: 28,
     letterSpacing: 0.5,
-    fontFamily:"Lexend-Regular"
+    fontFamily: "Lexend-Regular",
   },
-  mediaContainer: {
-  marginTop: 12,
-},
-
-video: {
-  width: "100%",
-  height: 220,
-  borderRadius: 12,
-  backgroundColor: "#000",
-},
-
-sectionLabel: {
-  fontSize: 16,
-  fontWeight: "600",
-  marginBottom: 8,
-  color: "#0F172A",
-},
-
-fallbackText: {
-  color: "#DC2626",
-  marginBottom: 6,
-  fontSize: 13,
-},
+  video: {
+    width: "100%",
+    height: 220,
+    borderRadius: 10,
+    backgroundColor: "#000",
+  },
 });
